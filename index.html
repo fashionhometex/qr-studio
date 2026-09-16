@@ -1,8 +1,15 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="สร้าง QR Code, ย่อ URL, และใส่ UTM Tracking — ฟรี ไม่มีเซิร์ฟเวอร์ ไม่หมดอายุ">
+<style>
+html { color-scheme: light dark; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
 <title>QR Studio</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,6 +32,8 @@
   --green-bg: #EEF5F0;
   --amber: #9A6B00;
   --amber-bg: #FFF8E6;
+  --red: #B04040;
+  --red-bg: #FDF0F0;
   --radius: 14px;
   --shadow: 0 1px 3px rgba(44,39,32,.05),0 4px 12px rgba(44,39,32,.06);
   --ff-display: 'Cormorant Garamond', Georgia, serif;
@@ -35,6 +44,7 @@
   --text:#EDE7DF;--muted:#8A837A;--accent:#C9A97C;--accent-fg:#141210;
   --border:#2C2922;--border-focus:#A88660;
   --green:#5DBF7A;--green-bg:#152219;--amber:#D4AA3A;--amber-bg:#211B07;
+  --red:#E07070;--red-bg:#231010;
   --shadow:0 1px 3px rgba(0,0,0,.2),0 4px 12px rgba(0,0,0,.2);
 }}
 :root[data-theme="dark"] {
@@ -42,6 +52,7 @@
   --text:#EDE7DF;--muted:#8A837A;--accent:#C9A97C;--accent-fg:#141210;
   --border:#2C2922;--border-focus:#A88660;
   --green:#5DBF7A;--green-bg:#152219;--amber:#D4AA3A;--amber-bg:#211B07;
+  --red:#E07070;--red-bg:#231010;
   --shadow:0 1px 3px rgba(0,0,0,.2),0 4px 12px rgba(0,0,0,.2);
 }
 
@@ -66,6 +77,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff-body);
 /* Workspace */
 .ws{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
 @media(max-width:640px){.ws{grid-template-columns:1fr}.hdr{margin-bottom:32px}}
+
+/* Sticky right panel on desktop */
+@media(min-width:641px){
+  .panel-right{position:sticky;top:24px}
+}
 
 /* Panel */
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
@@ -100,7 +116,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--ff-body);
 textarea,input[type=text],select{width:100%;background:var(--surface2);border:1px solid var(--border);
   border-radius:9px;padding:10px 13px;font-family:var(--ff-body);font-size:13px;color:var(--text);
   outline:none;transition:border-color .18s;appearance:none}
-textarea{resize:vertical;min-height:72px;line-height:1.5}
+/* Fix text overflow in inputs */
+input[type=text]{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+input[type=text]:focus{overflow:auto;text-overflow:clip;white-space:nowrap}
+textarea{resize:vertical;min-height:72px;line-height:1.5;overflow-y:auto;word-break:break-all}
 textarea::placeholder,input::placeholder{color:var(--muted);opacity:.7}
 textarea:focus,input:focus,select:focus{border-color:var(--border-focus)}
 select{cursor:pointer;padding-right:36px;
@@ -112,7 +131,7 @@ select{cursor:pointer;padding-right:36px;
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
 .chip{padding:4px 10px;border:1px solid var(--border);border-radius:20px;
   font-size:11px;font-weight:500;color:var(--muted);cursor:pointer;background:var(--surface2);
-  transition:all .14s;white-space:nowrap}
+  transition:all .14s;white-space:nowrap;font-family:var(--ff-body)}
 .chip:hover{border-color:var(--border-focus);color:var(--text)}
 .chip.active{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 
@@ -207,6 +226,8 @@ input[type=color]{appearance:none;-webkit-appearance:none;width:22px;height:22px
 .btn-act:hover{background:var(--surface3);border-color:var(--border-focus)}
 .btn-act.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
 .btn-act.primary:hover{opacity:.82;background:var(--accent)}
+.btn-act.green{background:var(--green-bg);border-color:color-mix(in srgb,var(--green) 25%,transparent);color:var(--green)}
+.btn-act.green:hover{background:color-mix(in srgb,var(--green-bg) 80%,var(--green) 20%)}
 
 /* Perm badge */
 .perm-row{display:flex;align-items:center;justify-content:space-between;
@@ -234,6 +255,70 @@ input[type=color]{appearance:none;-webkit-appearance:none;width:22px;height:22px
   text-transform:uppercase;color:var(--muted);margin-bottom:5px}
 .utm-preview .pv-url{font-size:11px;color:var(--text);word-break:break-all;line-height:1.5;
   font-variant-numeric:tabular-nums}
+
+/* ── History section ── */
+.hist-section{margin-top:36px}
+.hist-hd{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px}
+.hist-hd-left h2{font-family:var(--ff-display);font-size:clamp(1.6rem,4vw,2.2rem);font-weight:500;line-height:1.1}
+.hist-hd-left p{font-size:12px;color:var(--muted);margin-top:3px}
+.hist-toolbar{display:flex;gap:8px;margin-bottom:12px}
+.hist-search-wrap{position:relative;flex:1}
+.hist-search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);
+  width:14px;height:14px;color:var(--muted);pointer-events:none}
+.hist-search{padding-left:32px!important;min-width:0}
+.hist-folders{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+.hist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+@media(max-width:480px){.hist-grid{grid-template-columns:repeat(2,1fr)}}
+.hist-empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.hist-empty-icon{font-size:36px;margin-bottom:12px}
+.hist-empty-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px}
+.hist-empty-sub{font-size:12px}
+
+/* History card */
+.hist-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;transition:border-color .15s,box-shadow .15s;display:flex;flex-direction:column}
+.hist-card:hover{border-color:var(--border-focus);box-shadow:var(--shadow)}
+.hist-qr-wrap{padding:12px;background:#fff;display:flex;align-items:center;
+  justify-content:center;aspect-ratio:1;flex-shrink:0}
+.hist-qr-wrap img{width:100%;height:100%;object-fit:contain}
+.hist-info{padding:9px 10px;flex:1;display:flex;flex-direction:column;gap:3px}
+.hist-card-label{font-size:12px;font-weight:600;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-card-url{font-size:10px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4}
+.hist-card-meta{font-size:10px;color:var(--muted);margin-top:1px}
+.hist-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.hist-tag{font-size:10px;padding:2px 6px;border-radius:10px;
+  background:var(--surface3);color:var(--muted);white-space:nowrap}
+.hist-card-acts{display:flex;gap:1px;border-top:1px solid var(--border);flex-shrink:0}
+.hist-btn{flex:1;padding:7px 4px;border:none;font-size:11px;font-weight:600;
+  cursor:pointer;background:transparent;color:var(--muted);font-family:var(--ff-body);
+  transition:all .13s;display:flex;align-items:center;justify-content:center;gap:4px}
+.hist-btn:hover{background:var(--surface2);color:var(--text)}
+.hist-btn.load{color:var(--green)}
+.hist-btn.load:hover{background:var(--green-bg);color:var(--green)}
+.hist-btn.del{color:var(--muted)}
+.hist-btn.del:hover{background:var(--red-bg);color:var(--red)}
+.hist-btn-sep{width:1px;background:var(--border);flex-shrink:0}
+
+/* ── Modal overlay ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  backdrop-filter:blur(2px)}
+.modal-overlay[hidden]{display:none}
+.modal{background:var(--surface);border-radius:18px;padding:26px;width:100%;
+  max-width:360px;box-shadow:0 24px 80px rgba(0,0,0,.25);border:1px solid var(--border)}
+.modal-title{font-family:var(--ff-display);font-size:1.5rem;font-weight:500;
+  margin-bottom:4px;line-height:1.1}
+.modal-sub{font-size:12px;color:var(--muted);margin-bottom:18px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal-acts{display:flex;gap:8px;margin-top:20px}
+.modal-btn{flex:1;padding:10px;border-radius:9px;font-family:var(--ff-body);
+  font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);transition:all .14s}
+.modal-btn:hover{background:var(--surface3)}
+.modal-btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.modal-btn.primary:hover{opacity:.85}
 
 /* Responsive tweaks */
 @media(max-width:440px){.row2{grid-template-columns:1fr}.size-grid{grid-template-columns:repeat(2,1fr)}}
@@ -333,8 +418,6 @@ input[type=color]{appearance:none;-webkit-appearance:none;width:22px;height:22px
         <div class="step-body">
           <div class="step-body-inner">
             <div class="shorten-area">
-
-              <!-- Service links — updated dynamically when URL is entered -->
               <div id="shorten-links-area" style="display:none">
                 <div style="font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">เปิดเว็บย่อ URL</div>
                 <div style="display:flex;gap:7px;flex-wrap:wrap">
@@ -361,7 +444,6 @@ input[type=color]{appearance:none;-webkit-appearance:none;width:22px;height:22px
                   <button class="btn-copy-sm" id="short-manual-use" style="white-space:nowrap;padding:8px 12px;font-size:12px;background:var(--accent);color:var(--accent-fg);border-color:var(--accent)">ใช้</button>
                 </div>
               </div>
-
               <div class="short-result" id="short-result">
                 <div class="short-label">Short URL (permanent)</div>
                 <div class="short-url-row">
@@ -437,7 +519,7 @@ input[type=color]{appearance:none;-webkit-appearance:none;width:22px;height:22px
     </div><!-- /left panel -->
 
     <!-- ═══ RIGHT: Output ═══ -->
-    <div class="panel out-panel">
+    <div class="panel out-panel panel-right">
       <div class="out-label">Results</div>
 
       <!-- Active URL -->
@@ -493,17 +575,75 @@ input[type=color]{appearance:none;-webkit-appearance:none;width:22px;height:22px
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
           Copy Active URL
         </button>
+        <button class="btn-act green" id="save-hist-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save to History
+        </button>
       </div>
 
     </div><!-- /right panel -->
   </div><!-- /workspace -->
-</div>
+
+  <!-- ═══ History Section ═══ -->
+  <section class="hist-section" id="hist-section" style="display:none">
+    <div class="hist-hd">
+      <div class="hist-hd-left">
+        <h2>ประวัติ QR Code</h2>
+        <p>บันทึกไว้ในเครื่องของคุณ · ไม่หายไปไหน · ลบเมื่อใดก็ได้</p>
+      </div>
+      <button class="btn-copy-sm" id="hist-clear-btn">ล้างทั้งหมด</button>
+    </div>
+    <div class="hist-toolbar">
+      <div class="hist-search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="hist-search" id="hist-search" placeholder="ค้นหา URL, ชื่อ, tag…">
+      </div>
+    </div>
+    <div class="hist-folders" id="hist-folders"></div>
+    <div class="hist-grid" id="hist-grid"></div>
+    <div class="hist-empty" id="hist-empty" hidden>
+      <div class="hist-empty-icon">🔍</div>
+      <div class="hist-empty-title" id="hist-empty-title">ไม่พบผลการค้นหา</div>
+      <div class="hist-empty-sub">ลองใช้คำค้นหาอื่น</div>
+    </div>
+  </section>
+
+</div><!-- /app -->
 
 <div class="toast" id="toast"></div>
+
+<!-- ── Save to History Modal ── -->
+<div class="modal-overlay" id="save-modal" hidden>
+  <div class="modal">
+    <div class="modal-title">บันทึก QR Code</div>
+    <div class="modal-sub" id="modal-url-preview">—</div>
+    <div class="field">
+      <label class="fl" for="hist-label-in">ชื่อ / Label</label>
+      <input type="text" id="hist-label-in" placeholder="เช่น Facebook Oct Campaign…">
+    </div>
+    <div class="field">
+      <label class="fl" for="hist-folder-in">Folder <span style="font-weight:400;opacity:.6">(opt.)</span></label>
+      <input type="text" id="hist-folder-in" placeholder="Marketing, Social Media…" list="folder-datalist">
+      <datalist id="folder-datalist"></datalist>
+    </div>
+    <div class="field">
+      <label class="fl" for="hist-tags-in">Tags <span style="font-weight:400;opacity:.6">(คั่นด้วยจุลภาค)</span></label>
+      <input type="text" id="hist-tags-in" placeholder="facebook, sale, q4…">
+    </div>
+    <div class="modal-acts">
+      <button class="modal-btn" id="modal-cancel">ยกเลิก</button>
+      <button class="modal-btn primary" id="modal-save">บันทึก</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function(){
 'use strict';
+
+/* ── Constants ── */
+const HIST_KEY = 'qrsh_v1';
+const BORDER_PX = 40; // white border on PNG export
 
 /* ── State ── */
 const S = {
@@ -514,7 +654,9 @@ const S = {
   qrSize: 400,
   qrCanvas: null,
   svgData: null,
-  downloadsAPI: null
+  downloadsAPI: null,
+  qrInstance: null,
+  histFilter: { folder: '', search: '' }
 };
 
 /* ── Downloads capability (Claude artifact env only) ── */
@@ -685,7 +827,6 @@ function updateGenBtn() {
   document.getElementById('gen-btn').disabled = !getActiveURL();
 }
 
-/* ── Update shorten area: show service links and pre-fill hrefs ── */
 function updateShortenArea() {
   const raw = S.utmURL || S.baseURL;
   const urlToShorten = normalizeURL(raw);
@@ -723,29 +864,16 @@ document.getElementById('copy-short-btn').addEventListener('click', () => {
   navigator.clipboard.writeText(S.shortURL).then(() => showToast('Short URL copied!')).catch(() => {});
 });
 
-/* ── Hex color parser ── */
-function hexToRGB(hex) {
-  const r = parseInt(hex.slice(1,3),16);
-  const g = parseInt(hex.slice(3,5),16);
-  const b = parseInt(hex.slice(5,7),16);
-  return [r,g,b];
-}
-
-/* ── Canvas to SVG ── */
-// PRIMARY path: read module boolean matrix directly from QRCode.js internals.
-// This is 100% accurate — no pixel sampling, no rounding drift, works for all modes.
+/* ── Canvas to SVG (module matrix primary path) ── */
 function canvasToSVG(canvas, transparent, bgHex) {
   const fgHex = fgIn.value;
-
-  // Use the module matrix from the QR instance (most reliable approach)
   if (S.qrInstance && S.qrInstance._oQRCode && S.qrInstance._oQRCode.modules) {
     const modules = S.qrInstance._oQRCode.modules;
-    const n = modules.length;          // QR grid size (e.g. 25 for version 2)
-    const quiet = 4;                   // standard 4-module quiet zone on each side
+    const n = modules.length;
+    const quiet = 4;
     const total = n + quiet * 2;
-    const ms = 10;                     // SVG module size in units (clean, scalable)
+    const ms = 10;
     const size = total * ms;
-
     const rects = [];
     for (let r = 0; r < n; r++) {
       for (let c = 0; c < n; c++) {
@@ -757,15 +885,12 @@ function canvasToSVG(canvas, transparent, bgHex) {
     const bgRect = transparent ? '' : `<rect width="${size}" height="${size}" fill="${bgHex}"/>`;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" shape-rendering="crispEdges">${bgRect}${rects.join('')}</svg>`;
   }
-
-  // FALLBACK: pixel sampling from canvas (used only if _oQRCode unavailable)
+  // Fallback: pixel sampling
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height;
   let imgData;
   try { imgData = ctx.getImageData(0, 0, w, h); } catch(e) { return null; }
   const d = imgData.data;
-
-  // Find first dark pixel row (skip transparent quiet zone)
   let firstDarkRow = -1;
   outer: for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -774,8 +899,6 @@ function canvasToSVG(canvas, transparent, bgHex) {
     }
   }
   if (firstDarkRow < 0) return null;
-
-  // Scan that row for the first dark run (7 modules of finder outer border)
   let startX = -1, darkRun = 0;
   for (let x = 0; x < w; x++) {
     const i = (firstDarkRow * w + x) * 4;
@@ -784,8 +907,6 @@ function canvasToSVG(canvas, transparent, bgHex) {
     else if (startX >= 0) break;
   }
   let ms = darkRun >= 7 ? Math.round(darkRun / 7) : Math.max(1, darkRun);
-
-  // Grid origin at (startX, firstDarkRow); sample module centers from there
   const cols = Math.round((w - startX) / ms);
   const rows = Math.round((h - firstDarkRow) / ms);
   const rects = [];
@@ -803,6 +924,52 @@ function canvasToSVG(canvas, transparent, bgHex) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" shape-rendering="crispEdges">${bgRect}${rects.join('')}</svg>`;
 }
 
+/* ── Mini SVG for history preview (compact, white background) ── */
+function makeMiniSVG(modules, fgHex) {
+  if (!modules) return null;
+  const n = modules.length;
+  const quiet = 3;
+  const total = n + quiet * 2;
+  const ms = 4;
+  const size = total * ms;
+  const rects = [];
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (modules[r][c]) {
+        rects.push(`<rect x="${(quiet+c)*ms}" y="${(quiet+r)*ms}" width="${ms}" height="${ms}" fill="${fgHex}"/>`);
+      }
+    }
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="#fff"/>${rects.join('')}</svg>`;
+}
+
+/* ── PNG export with white border ── */
+function makeExportCanvas(sourceCanvas) {
+  const W = sourceCanvas.width + BORDER_PX * 2;
+  const H = sourceCanvas.height + BORDER_PX * 2;
+  const out = document.createElement('canvas');
+  out.width = W; out.height = H;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(sourceCanvas, BORDER_PX, BORDER_PX);
+  return out;
+}
+
+/* ── Direct file download (no new window) ── */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    try { document.body.removeChild(a); } catch {}
+    URL.revokeObjectURL(url);
+  }, 1000);
+}
+
 /* ── Generate QR ── */
 let qrTimer;
 function scheduleQR() { clearTimeout(qrTimer); qrTimer = setTimeout(generateQR, 200); }
@@ -815,10 +982,6 @@ function generateQR() {
   const wrap = document.getElementById('qr-container');
   const frame = document.getElementById('qr-frame');
   const isTransp = transpCheck.checked;
-
-  // KEY FIX: pass rgba(0,0,0,0) as colorLight for transparent mode.
-  // QRCode.js accepts CSS color strings — this avoids pixel manipulation
-  // via getImageData/putImageData which is blocked in the artifact sandbox.
   const lightColor = isTransp ? 'rgba(0,0,0,0)' : bgIn.value;
 
   wrap.innerHTML = '';
@@ -841,10 +1004,7 @@ function generateQR() {
   }
 
   setTimeout(() => {
-    // QRCode.js shows the img (from canvas.toDataURL) and hides the canvas internally.
-    // We keep both references: img for display, canvas for PNG/SVG export.
     S.qrCanvas = wrap.querySelector('canvas');
-    // Do NOT hide the img — QRCode.js shows it as the rendered QR.
     S.svgData = S.qrCanvas ? canvasToSVG(S.qrCanvas, isTransp, bgIn.value) : null;
     frame.classList.add('has-qr');
     if (isTransp) {
@@ -860,26 +1020,26 @@ function generateQR() {
 document.getElementById('gen-btn').addEventListener('click', generateQR);
 urlInput.addEventListener('keydown', e => { if (e.key==='Enter'&&e.ctrlKey){ e.preventDefault(); generateQR(); }});
 
-/* ── Save PNG ── */
+/* ── Save PNG (direct download + white border) ── */
 document.getElementById('save-btn').addEventListener('click', () => {
   if (!S.qrCanvas) return;
   const filename = 'qr-code' + (transpCheck.checked ? '-transparent' : '') + '.png';
+  const exportCanvas = makeExportCanvas(S.qrCanvas);
   if (S.downloadsAPI) {
-    S.qrCanvas.toBlob(blob => {
+    exportCanvas.toBlob(blob => {
       S.downloadsAPI.save({ filename, data: blob })
         .then(() => showToast('PNG saved!'))
         .catch(err => { if (err && err.code !== 'declined') showToast('Could not save.'); });
     }, 'image/png');
   } else {
-    const w = window.open('','_blank');
-    if (w) {
-      const d = S.qrCanvas.toDataURL('image/png');
-      w.document.write('<html><head><title>QR Code</title><style>body{margin:0;background:#f0f0f0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:14px;font-family:system-ui}img{box-shadow:0 4px 24px rgba(0,0,0,.12)}p{color:#777;font-size:13px}</style></head><body><img src="'+d+'" alt="QR Code"><p>Right-click → Save image as…</p></body></html>');
-    }
+    exportCanvas.toBlob(blob => {
+      downloadBlob(blob, filename);
+      showToast('PNG downloaded!');
+    }, 'image/png');
   }
 });
 
-/* ── Save SVG ── */
+/* ── Save SVG (direct download) ── */
 document.getElementById('save-svg-btn').addEventListener('click', () => {
   if (!S.svgData) { showToast('Generate a QR code first.'); return; }
   const blob = new Blob([S.svgData], { type: 'image/svg+xml' });
@@ -888,11 +1048,8 @@ document.getElementById('save-svg-btn').addEventListener('click', () => {
       .then(() => showToast('SVG saved!'))
       .catch(err => { if (err && err.code !== 'declined') showToast('Could not save.'); });
   } else {
-    const w = window.open('','_blank');
-    if (w) {
-      const url = URL.createObjectURL(blob);
-      w.document.write('<html><head><title>QR SVG</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f0f0f0"><img src="'+url+'" style="max-width:80vmin"><script>URL.revokeObjectURL("'+url+'");<\/script></body></html>');
-    }
+    downloadBlob(blob, 'qr-code.svg');
+    showToast('SVG downloaded!');
   }
 });
 
@@ -917,12 +1074,307 @@ document.getElementById('copy-url-btn').addEventListener('click', () => {
   navigator.clipboard.writeText(url).then(() => showToast('URL copied!')).catch(() => {});
 });
 
+/* ══════════════════════════════════════
+   HISTORY SYSTEM
+══════════════════════════════════════ */
+
+/* Storage */
+function histLoad() {
+  try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); }
+  catch { return []; }
+}
+function histSave(data) {
+  try { localStorage.setItem(HIST_KEY, JSON.stringify(data)); } catch(e) {
+    showToast('ไม่สามารถบันทึกได้ — storage เต็ม');
+  }
+}
+function histAdd(entry) {
+  const data = histLoad();
+  data.unshift(entry);
+  histSave(data);
+  renderHistory();
+}
+function histDelete(id) {
+  histSave(histLoad().filter(e => e.id !== id));
+  renderHistory();
+}
+
+/* Format date */
+function fmtDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const now = Date.now();
+  const diff = (now - ts) / 1000;
+  if (diff < 60) return 'เมื่อสักครู่';
+  if (diff < 3600) return Math.round(diff/60) + ' นาทีที่แล้ว';
+  if (diff < 86400) return Math.round(diff/3600) + ' ชั่วโมงที่แล้ว';
+  if (diff < 86400*7) return Math.round(diff/86400) + ' วันที่แล้ว';
+  return d.toLocaleDateString('th-TH', {day:'numeric',month:'short',year:'2-digit'});
+}
+
+/* Get all unique folders */
+function getFolders(data) {
+  const set = new Set();
+  data.forEach(e => { if (e.folder) set.add(e.folder); });
+  return [...set];
+}
+
+/* Render history grid */
+function renderHistory() {
+  const data = histLoad();
+  const section = document.getElementById('hist-section');
+
+  if (data.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+
+  const search = S.histFilter.search.toLowerCase().trim();
+  const folder = S.histFilter.folder;
+
+  // Folder chips
+  const foldersEl = document.getElementById('hist-folders');
+  const folders = getFolders(data);
+  foldersEl.innerHTML = '';
+  if (folders.length) {
+    const allBtn = document.createElement('button');
+    allBtn.className = 'chip' + (folder === '' ? ' active' : '');
+    allBtn.textContent = 'ทั้งหมด';
+    allBtn.onclick = () => { S.histFilter.folder = ''; renderHistory(); };
+    foldersEl.appendChild(allBtn);
+    folders.forEach(f => {
+      const btn = document.createElement('button');
+      btn.className = 'chip' + (folder === f ? ' active' : '');
+      btn.textContent = '📁 ' + f;
+      btn.onclick = () => { S.histFilter.folder = f === folder ? '' : f; renderHistory(); };
+      foldersEl.appendChild(btn);
+    });
+  }
+
+  // Update datalist for folder input
+  const dl = document.getElementById('folder-datalist');
+  if (dl) dl.innerHTML = folders.map(f => `<option value="${f}">`).join('');
+
+  // Filter
+  let filtered = data;
+  if (folder) filtered = filtered.filter(e => e.folder === folder);
+  if (search) filtered = filtered.filter(e =>
+    (e.url || '').toLowerCase().includes(search) ||
+    (e.label || '').toLowerCase().includes(search) ||
+    (e.folder || '').toLowerCase().includes(search) ||
+    (e.tags || []).some(t => t.toLowerCase().includes(search))
+  );
+
+  const grid = document.getElementById('hist-grid');
+  const emptyEl = document.getElementById('hist-empty');
+  const emptyTitle = document.getElementById('hist-empty-title');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '';
+    emptyEl.hidden = false;
+    emptyEl.querySelector('.hist-empty-icon').textContent = search ? '🔍' : '📁';
+    emptyTitle.textContent = search ? 'ไม่พบผลการค้นหา' : 'โฟล์เดอร์นี้ว่างเปล่า';
+    return;
+  }
+  emptyEl.hidden = true;
+  grid.innerHTML = '';
+
+  filtered.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'hist-card';
+
+    // QR preview
+    const qrWrap = document.createElement('div');
+    qrWrap.className = 'hist-qr-wrap';
+    if (item.miniSvg) {
+      const img = document.createElement('img');
+      img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.miniSvg)}`;
+      img.alt = 'QR';
+      img.loading = 'lazy';
+      qrWrap.appendChild(img);
+    }
+    card.appendChild(qrWrap);
+
+    // Info
+    const info = document.createElement('div');
+    info.className = 'hist-info';
+
+    if (item.label) {
+      const lbl = document.createElement('div');
+      lbl.className = 'hist-card-label';
+      lbl.textContent = item.label;
+      info.appendChild(lbl);
+    }
+
+    const urlEl = document.createElement('div');
+    urlEl.className = 'hist-card-url';
+    urlEl.title = item.url;
+    urlEl.textContent = item.url;
+    info.appendChild(urlEl);
+
+    const meta = document.createElement('div');
+    meta.className = 'hist-card-meta';
+    meta.textContent = fmtDate(item.ts) + (item.folder ? ' · 📁 ' + item.folder : '');
+    info.appendChild(meta);
+
+    if (item.tags && item.tags.length) {
+      const tagsEl = document.createElement('div');
+      tagsEl.className = 'hist-tags';
+      item.tags.slice(0,4).forEach(t => {
+        const tag = document.createElement('span');
+        tag.className = 'hist-tag';
+        tag.textContent = t;
+        tagsEl.appendChild(tag);
+      });
+      info.appendChild(tagsEl);
+    }
+
+    card.appendChild(info);
+
+    // Action buttons
+    const acts = document.createElement('div');
+    acts.className = 'hist-card-acts';
+
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'hist-btn load';
+    loadBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 3 21 3 21 9"/><path d="M21 3L9 15"/><path d="M10 3H3v18h18v-7"/></svg> โหลด`;
+    loadBtn.title = 'โหลด URL นี้';
+    loadBtn.onclick = () => {
+      urlInput.value = item.url;
+      S.baseURL = item.url;
+      S.utmURL = '';
+      S.shortURL = '';
+      ['utm-source','utm-medium','utm-campaign','utm-term','utm-content'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      document.getElementById('utm-preview').style.display = 'none';
+      document.getElementById('utm-meta').textContent = 'Optional';
+      document.getElementById('utm-meta').style.color = '';
+      document.getElementById('short-result').style.display = 'none';
+      updateAll();
+      generateQR();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showToast('โหลดแล้ว!');
+    };
+    acts.appendChild(loadBtn);
+
+    const sep = document.createElement('div');
+    sep.className = 'hist-btn-sep';
+    acts.appendChild(sep);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'hist-btn del';
+    delBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg> ลบ`;
+    delBtn.title = 'ลบรายการนี้';
+    delBtn.onclick = () => {
+      card.style.opacity = '0.4';
+      card.style.pointerEvents = 'none';
+      setTimeout(() => histDelete(item.id), 200);
+    };
+    acts.appendChild(delBtn);
+
+    card.appendChild(acts);
+    grid.appendChild(card);
+  });
+}
+
+/* History search */
+document.getElementById('hist-search').addEventListener('input', e => {
+  S.histFilter.search = e.target.value;
+  renderHistory();
+});
+
+/* Clear all history */
+document.getElementById('hist-clear-btn').addEventListener('click', () => {
+  if (!confirm('ล้างประวัติ QR Code ทั้งหมด?')) return;
+  try { localStorage.removeItem(HIST_KEY); } catch {}
+  S.histFilter = { folder: '', search: '' };
+  renderHistory();
+  showToast('ล้างประวัติแล้ว');
+});
+
+/* Initial render */
+renderHistory();
+
+/* ── Save to History modal ── */
+document.getElementById('save-hist-btn').addEventListener('click', openSaveModal);
+
+function openSaveModal() {
+  const url = getActiveURL();
+  if (!url) { showToast('กรอก URL ก่อนนะ'); return; }
+  if (!S.qrCanvas) { showToast('Generate QR Code ก่อน'); return; }
+
+  // Pre-fill label from URL
+  let label = '';
+  try {
+    const u = new URL(url);
+    const pathPart = u.pathname.replace(/^\/|\/$/g,'').split('/').filter(Boolean).pop();
+    label = pathPart || u.hostname.replace(/^www\./,'');
+  } catch { label = ''; }
+
+  document.getElementById('hist-label-in').value = label;
+  document.getElementById('hist-folder-in').value = '';
+  document.getElementById('hist-tags-in').value = '';
+  document.getElementById('modal-url-preview').textContent = url;
+
+  // Update folder datalist
+  const folders = getFolders(histLoad());
+  const dl = document.getElementById('folder-datalist');
+  if (dl) dl.innerHTML = folders.map(f => `<option value="${f}">`).join('');
+
+  document.getElementById('save-modal').hidden = false;
+  setTimeout(() => document.getElementById('hist-label-in').focus(), 50);
+}
+
+function closeSaveModal() {
+  document.getElementById('save-modal').hidden = true;
+}
+
+function doSaveToHistory() {
+  const url = getActiveURL();
+  const label = document.getElementById('hist-label-in').value.trim();
+  const folder = document.getElementById('hist-folder-in').value.trim();
+  const tagsRaw = document.getElementById('hist-tags-in').value.trim();
+  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+  const modules = S.qrInstance && S.qrInstance._oQRCode && S.qrInstance._oQRCode.modules;
+  const miniSvg = makeMiniSVG(modules, fgIn.value);
+
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  histAdd({ id, ts: Date.now(), url, label, folder, tags, miniSvg, size: S.qrSize });
+  closeSaveModal();
+  showToast('บันทึกลงประวัติแล้ว! 📁');
+}
+
+document.getElementById('modal-cancel').addEventListener('click', closeSaveModal);
+document.getElementById('modal-save').addEventListener('click', doSaveToHistory);
+
+// Close modal on overlay click
+document.getElementById('save-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeSaveModal();
+});
+
+// Close modal on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !document.getElementById('save-modal').hidden) closeSaveModal();
+});
+
+// Save on Enter in modal inputs
+['hist-label-in','hist-folder-in','hist-tags-in'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); doSaveToHistory(); }
+  });
+});
+
 /* ── Toast ── */
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('on');
-  setTimeout(() => t.classList.remove('on'), 2800);
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('on'), 2800);
 }
 
 })();
