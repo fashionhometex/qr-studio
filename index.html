@@ -517,8 +517,10 @@ const S = {
   downloadsAPI: null
 };
 
-/* ── Downloads capability ── */
-claude.use('downloads').then(api => { S.downloadsAPI = api; });
+/* ── Downloads capability (Claude artifact env only) ── */
+if (typeof claude !== 'undefined' && claude.use) {
+  claude.use('downloads').then(api => { S.downloadsAPI = api; });
+}
 
 /* ── Accordion toggles ── */
 ['utm-toggle','short-toggle','qr-toggle'].forEach(id => {
