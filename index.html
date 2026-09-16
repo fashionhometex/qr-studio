@@ -1,15 +1,9 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="สร้าง QR Code, ย่อ URL, และใส่ UTM Tracking — ฟรี ไม่มีเซิร์ฟเวอร์ ไม่หมดอายุ">
-<style>
-html { color-scheme: light dark; }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-img { max-width: 100%; }
-[hidden] { display: none !important; }
-</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="สร้าง QR Code ฟรี · ไม่มี server · ไม่มีวันหมดอายุ · สร้าง UTM links · ย่อ URL">
 <title>QR Studio</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -301,6 +295,18 @@ input[type=color]{appearance:none;-webkit-appearance:none;width:22px;height:22px
 .hist-btn.del:hover{background:var(--red-bg);color:var(--red)}
 .hist-btn-sep{width:1px;background:var(--border);flex-shrink:0}
 
+/* ── Detail row ── */
+.detail-row{display:flex;gap:8px;padding:6px 10px;background:var(--surface2);border-radius:7px;font-size:12px}
+.detail-key{color:var(--muted);min-width:72px;flex-shrink:0;font-weight:500}
+.detail-val{color:var(--text);word-break:break-all;flex:1;line-height:1.5}
+.detail-qr{width:76px;height:76px;flex-shrink:0;background:#fff;border-radius:8px;
+  border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+  padding:6px;overflow:hidden}
+.detail-qr img{width:100%;height:100%;object-fit:contain}
+.btn-act.reset{border-color:color-mix(in srgb,var(--amber) 30%,transparent);
+  color:var(--amber);background:var(--amber-bg)}
+.btn-act.reset:hover{background:color-mix(in srgb,var(--amber-bg) 70%,var(--amber) 30%)}
+
 /* ── Modal overlay ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;
   display:flex;align-items:center;justify-content:center;padding:20px;
@@ -579,6 +585,10 @@ input[type=color]{appearance:none;-webkit-appearance:none;width:22px;height:22px
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           Save to History
         </button>
+        <button class="btn-act reset" id="new-qr-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+          ทำ QR ใหม่
+        </button>
       </div>
 
     </div><!-- /right panel -->
@@ -611,6 +621,24 @@ input[type=color]{appearance:none;-webkit-appearance:none;width:22px;height:22px
 </div><!-- /app -->
 
 <div class="toast" id="toast"></div>
+
+<!-- ── History Detail Modal ── -->
+<div class="modal-overlay" id="detail-modal" hidden>
+  <div class="modal" style="max-width:400px">
+    <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:16px">
+      <div class="detail-qr" id="detail-qr-preview"></div>
+      <div style="flex:1;min-width:0">
+        <div class="modal-title" id="detail-label" style="font-size:1.2rem;margin-bottom:4px">—</div>
+        <div style="font-size:11px;color:var(--muted);word-break:break-all;line-height:1.5" id="detail-url">—</div>
+      </div>
+    </div>
+    <div id="detail-fields" style="display:flex;flex-direction:column;gap:5px"></div>
+    <div class="modal-acts">
+      <button class="modal-btn" id="detail-close">ปิด</button>
+      <button class="modal-btn primary" id="detail-load-btn">โหลด QR นี้</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── Save to History Modal ── -->
 <div class="modal-overlay" id="save-modal" hidden>
@@ -1184,9 +1212,12 @@ function renderHistory() {
     const card = document.createElement('div');
     card.className = 'hist-card';
 
-    // QR preview
+    // QR preview (click to view details)
     const qrWrap = document.createElement('div');
     qrWrap.className = 'hist-qr-wrap';
+    qrWrap.style.cursor = 'pointer';
+    qrWrap.title = 'ดูรายละเอียด';
+    qrWrap.onclick = () => openDetailModal(item);
     if (item.miniSvg) {
       const img = document.createElement('img');
       img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.miniSvg)}`;
@@ -1204,6 +1235,8 @@ function renderHistory() {
       const lbl = document.createElement('div');
       lbl.className = 'hist-card-label';
       lbl.textContent = item.label;
+      lbl.style.cursor = 'pointer';
+      lbl.onclick = () => openDetailModal(item);
       info.appendChild(lbl);
     }
 
@@ -1255,7 +1288,10 @@ function renderHistory() {
       document.getElementById('short-result').style.display = 'none';
       updateAll();
       generateQR();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Scroll to QR frame AFTER the 80ms render timeout inside generateQR
+      setTimeout(() => {
+        document.getElementById('qr-frame').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 160);
       showToast('โหลดแล้ว!');
     };
     acts.appendChild(loadBtn);
@@ -1343,7 +1379,13 @@ function doSaveToHistory() {
   const miniSvg = makeMiniSVG(modules, fgIn.value);
 
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-  histAdd({ id, ts: Date.now(), url, label, folder, tags, miniSvg, size: S.qrSize });
+  histAdd({
+    id, ts: Date.now(), url, label, folder, tags, miniSvg, size: S.qrSize,
+    fg: fgIn.value,
+    bg: bgIn.value,
+    transparent: transpCheck.checked,
+    ecc: document.getElementById('qr-ecc').value
+  });
   closeSaveModal();
   showToast('บันทึกลงประวัติแล้ว! 📁');
 }
@@ -1368,6 +1410,174 @@ document.addEventListener('keydown', e => {
   });
 });
 
+/* ══════════════════════════════════════
+   RESET / NEW QR
+══════════════════════════════════════ */
+function resetAll() {
+  // Clear URL and UTM fields
+  urlInput.value = '';
+  ['utm-source','utm-medium','utm-campaign','utm-term','utm-content'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  document.getElementById('utm-preview').style.display = 'none';
+  document.getElementById('utm-meta').textContent = 'Optional';
+  document.getElementById('utm-meta').style.color = '';
+  document.getElementById('short-result').style.display = 'none';
+  const shortManual = document.getElementById('short-manual-input');
+  if (shortManual) shortManual.value = '';
+  document.getElementById('short-meta').textContent = 'Optional';
+  document.getElementById('short-meta').style.color = '';
+
+  // Reset state
+  S.baseURL = ''; S.utmURL = ''; S.shortURL = ''; S.shortBase = '';
+  S.qrCanvas = null; S.svgData = null; S.qrInstance = null;
+
+  // URL bar
+  const bar = document.getElementById('url-bar-text');
+  bar.textContent = 'Enter a URL to get started';
+  bar.classList.remove('filled');
+
+  // Badges
+  const badgesEl = document.getElementById('badges');
+  badgesEl.style.display = 'none'; badgesEl.innerHTML = '';
+
+  // QR frame
+  const frame = document.getElementById('qr-frame');
+  frame.classList.remove('has-qr'); frame.style.background = '';
+  const container = document.getElementById('qr-container');
+  container.innerHTML = ''; container.hidden = true;
+  document.getElementById('qr-idle').style.display = '';
+  document.getElementById('qr-actions').hidden = true;
+
+  // Colors back to defaults
+  fgIn.value = '#000000'; bgIn.value = '#ffffff';
+  document.getElementById('fg-hex').textContent = '#000000';
+  document.getElementById('bg-hex').textContent = '#FFFFFF';
+  transpCheck.checked = false;
+  const bgCol = document.getElementById('bg-col');
+  bgCol.style.opacity = ''; bgCol.style.pointerEvents = '';
+
+  // Size back to M (400)
+  document.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
+  document.querySelector('.sz[data-size="400"]').classList.add('active');
+  S.qrSize = 400;
+
+  // ECC back to M
+  document.getElementById('qr-ecc').value = 'M';
+
+  updateGenBtn();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  showToast('เริ่มใหม่แล้ว ✨');
+  setTimeout(() => { urlInput.focus(); }, 350);
+}
+
+document.getElementById('new-qr-btn').addEventListener('click', resetAll);
+
+/* ══════════════════════════════════════
+   HISTORY DETAIL MODAL
+══════════════════════════════════════ */
+let currentDetailItem = null;
+
+function openDetailModal(item) {
+  currentDetailItem = item;
+
+  // QR preview
+  const previewEl = document.getElementById('detail-qr-preview');
+  if (item.miniSvg) {
+    previewEl.innerHTML = `<img src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.miniSvg)}" alt="QR">`;
+  } else {
+    previewEl.innerHTML = '<span style="font-size:24px;opacity:.3">⬛</span>';
+  }
+
+  // Header
+  document.getElementById('detail-label').textContent = item.label || 'ไม่มีชื่อ';
+  document.getElementById('detail-url').textContent = item.url || '—';
+
+  // Fields
+  const fields = document.getElementById('detail-fields');
+  fields.innerHTML = '';
+  const addRow = (key, val) => {
+    if (!val && val !== false) return;
+    const row = document.createElement('div');
+    row.className = 'detail-row';
+    row.innerHTML = `<span class="detail-key">${key}</span><span class="detail-val">${val}</span>`;
+    fields.appendChild(row);
+  };
+
+  addRow('วันที่', fmtDate(item.ts));
+  addRow('ขนาด', item.size ? item.size + ' × ' + item.size + ' px' : null);
+  addRow('ECC', item.ecc ? ({L:'Low (L)',M:'Medium (M)',Q:'Quartile (Q)',H:'High (H)'}[item.ecc] || item.ecc) : null);
+  if (item.fg) {
+    addRow('สี', `<span style="display:inline-flex;align-items:center;gap:6px">
+      <span style="width:12px;height:12px;border-radius:3px;border:1px solid var(--border);background:${item.fg};display:inline-block"></span>${item.fg.toUpperCase()}
+      ${item.transparent ? ' / Transparent BG' : (item.bg ? ` / <span style="width:12px;height:12px;border-radius:3px;border:1px solid var(--border);background:${item.bg};display:inline-block"></span>${item.bg.toUpperCase()}` : '')}
+    </span>`);
+  }
+  addRow('Folder', item.folder || null);
+  addRow('Tags', item.tags && item.tags.length ? item.tags.join(', ') : null);
+
+  document.getElementById('detail-modal').hidden = false;
+}
+
+function closeDetailModal() {
+  document.getElementById('detail-modal').hidden = true;
+  currentDetailItem = null;
+}
+
+document.getElementById('detail-close').addEventListener('click', closeDetailModal);
+
+document.getElementById('detail-load-btn').addEventListener('click', () => {
+  if (!currentDetailItem) return;
+  const item = currentDetailItem;
+  closeDetailModal();
+  // Same as load button in card
+  urlInput.value = item.url;
+  S.baseURL = item.url;
+  S.utmURL = ''; S.shortURL = '';
+  ['utm-source','utm-medium','utm-campaign','utm-term','utm-content'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  document.getElementById('utm-preview').style.display = 'none';
+  document.getElementById('utm-meta').textContent = 'Optional';
+  document.getElementById('utm-meta').style.color = '';
+  document.getElementById('short-result').style.display = 'none';
+  // Restore saved settings if available
+  if (item.fg) { fgIn.value = item.fg; document.getElementById('fg-hex').textContent = item.fg.toUpperCase(); }
+  if (item.ecc) document.getElementById('qr-ecc').value = item.ecc;
+  if (typeof item.transparent === 'boolean') {
+    transpCheck.checked = item.transparent;
+    const bgCol = document.getElementById('bg-col');
+    bgCol.style.opacity = item.transparent ? '.35' : '';
+    bgCol.style.pointerEvents = item.transparent ? 'none' : '';
+  }
+  if (item.bg && !item.transparent) {
+    bgIn.value = item.bg;
+    document.getElementById('bg-hex').textContent = item.bg.toUpperCase();
+  }
+  if (item.size) {
+    document.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
+    const sizeBtn = document.querySelector(`.sz[data-size="${item.size}"]`);
+    if (sizeBtn) sizeBtn.classList.add('active');
+    S.qrSize = item.size;
+  }
+  updateAll();
+  generateQR();
+  setTimeout(() => {
+    document.getElementById('qr-frame').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 160);
+  showToast('โหลดแล้ว!');
+});
+
+document.getElementById('detail-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDetailModal();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !document.getElementById('detail-modal').hidden) closeDetailModal();
+});
+
 /* ── Toast ── */
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -1379,4 +1589,8 @@ function showToast(msg) {
 
 })();
 </script>
+
+</head>
+<body>
+</body>
 </html>
