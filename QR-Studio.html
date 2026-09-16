@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>QR Studio</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+:root {
+  --bg: #F2EFE9;
+  --surface: #FDFCFA;
+  --surface2: #F7F4EF;
+  --surface3: #F0ECE5;
+  --text: #1C1916;
+  --muted: #8C857C;
+  --accent: #2E2720;
+  --accent-fg: #F7F4EF;
+  --border: #E2DDD6;
+  --border-focus: #7C6E62;
+  --green: #4A7C59;
+  --green-bg: #EEF5F0;
+  --amber: #9A6B00;
+  --amber-bg: #FFF8E6;
+  --radius: 14px;
+  --shadow: 0 1px 3px rgba(44,39,32,.05),0 4px 12px rgba(44,39,32,.06);
+  --ff-display: 'Cormorant Garamond', Georgia, serif;
+  --ff-body: 'Inter', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#141210;--surface:#1C1A17;--surface2:#222018;--surface3:#282520;
+  --text:#EDE7DF;--muted:#8A837A;--accent:#C9A97C;--accent-fg:#141210;
+  --border:#2C2922;--border-focus:#A88660;
+  --green:#5DBF7A;--green-bg:#152219;--amber:#D4AA3A;--amber-bg:#211B07;
+  --shadow:0 1px 3px rgba(0,0,0,.2),0 4px 12px rgba(0,0,0,.2);
+}}
+:root[data-theme="dark"] {
+  --bg:#141210;--surface:#1C1A17;--surface2:#222018;--surface3:#282520;
+  --text:#EDE7DF;--muted:#8A837A;--accent:#C9A97C;--accent-fg:#141210;
+  --border:#2C2922;--border-focus:#A88660;
+  --green:#5DBF7A;--green-bg:#152219;--amber:#D4AA3A;--amber-bg:#211B07;
+  --shadow:0 1px 3px rgba(0,0,0,.2),0 4px 12px rgba(0,0,0,.2);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--ff-body);
+  font-size:14px;line-height:1.6;padding-inline:16px;padding-block:44px 72px;min-height:100%}
+
+.app{max-width:960px;margin:0 auto}
+
+/* Header */
+.hdr{text-align:center;margin-bottom:44px}
+.hdr-eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.eye-dot{width:6px;height:6px;border-radius:50%;background:var(--green);
+  animation:blink 2.5s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.hdr h1{font-family:var(--ff-display);font-size:clamp(2.4rem,5.5vw,4rem);
+  font-weight:500;line-height:1.06;letter-spacing:-.01em;text-wrap:balance;margin-bottom:12px}
+.hdr h1 em{font-style:italic;color:var(--muted)}
+.hdr-sub{font-size:14px;color:var(--muted);max-width:420px;margin:0 auto;line-height:1.7}
+
+/* Workspace */
+.ws{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media(max-width:640px){.ws{grid-template-columns:1fr}.hdr{margin-bottom:32px}}
+
+/* Panel */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden}
+
+/* Step sections */
+.step{border-bottom:1px solid var(--border)}
+.step:last-child{border-bottom:none}
+.step-hd{display:flex;align-items:center;gap:10px;padding:16px 20px;cursor:default}
+.step-hd.toggle{cursor:pointer;user-select:none;transition:background .15s}
+.step-hd.toggle:hover{background:var(--surface2)}
+.step-icon{width:28px;height:28px;border-radius:7px;background:var(--surface3);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.step-title{font-size:13px;font-weight:600;flex:1;color:var(--text)}
+.step-meta{font-size:11px;color:var(--muted)}
+.chevron{width:16px;height:16px;color:var(--muted);flex-shrink:0;
+  transition:transform .22s;display:flex;align-items:center;justify-content:center}
+.chevron svg{width:14px;height:14px}
+.step.open .chevron{transform:rotate(180deg)}
+.step-body{padding:0 20px 18px;display:none}
+.step.open .step-body{display:block}
+.step-body-inner{padding:4px 0 0}
+
+/* Generate CTA step */
+.step-cta{padding:20px}
+
+/* Form atoms */
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.fl{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);display:block;margin-bottom:6px}
+textarea,input[type=text],select{width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:9px;padding:10px 13px;font-family:var(--ff-body);font-size:13px;color:var(--text);
+  outline:none;transition:border-color .18s;appearance:none}
+textarea{resize:vertical;min-height:72px;line-height:1.5}
+textarea::placeholder,input::placeholder{color:var(--muted);opacity:.7}
+textarea:focus,input:focus,select:focus{border-color:var(--border-focus)}
+select{cursor:pointer;padding-right:36px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238A837A' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* Chips */
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.chip{padding:4px 10px;border:1px solid var(--border);border-radius:20px;
+  font-size:11px;font-weight:500;color:var(--muted);cursor:pointer;background:var(--surface2);
+  transition:all .14s;white-space:nowrap}
+.chip:hover{border-color:var(--border-focus);color:var(--text)}
+.chip.active{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+
+/* Size grid */
+.size-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sz{background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:7px 4px;font-family:var(--ff-body);font-size:12px;font-weight:500;
+  color:var(--muted);cursor:pointer;text-align:center;line-height:1.3;transition:all .14s;outline:none}
+.sz:hover{border-color:var(--border-focus);color:var(--text)}
+.sz.active{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.sz span{display:block;font-size:10px;font-weight:400;opacity:.7;margin-top:2px}
+
+/* Color row */
+.clr-row{display:flex;gap:10px}
+.clr-col{flex:1}
+.clr-wrap{display:flex;align-items:center;gap:9px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:9px;padding:8px 12px}
+input[type=color]{appearance:none;-webkit-appearance:none;width:22px;height:22px;
+  border:none;border-radius:5px;cursor:pointer;padding:0;background:none;flex-shrink:0}
+.clr-hex{font-size:12px;font-variant-numeric:tabular-nums;font-weight:500}
+
+/* Generate button */
+.btn-gen{width:100%;padding:13px;background:var(--accent);color:var(--accent-fg);
+  border:none;border-radius:9px;font-family:var(--ff-body);font-size:13px;font-weight:600;
+  letter-spacing:.03em;cursor:pointer;transition:opacity .15s,transform .1s}
+.btn-gen:hover{opacity:.82}
+.btn-gen:active{transform:scale(.99)}
+.btn-gen:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* Shorten UI */
+.shorten-area{display:flex;flex-direction:column;gap:10px}
+.short-result{display:none;background:var(--green-bg);border:1px solid color-mix(in srgb,var(--green) 30%,transparent);
+  border-radius:9px;padding:10px 12px}
+.short-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--green);margin-bottom:4px}
+.short-url-row{display:flex;align-items:center;gap:8px}
+.short-url-text{font-size:13px;font-weight:600;color:var(--text);flex:1;
+  word-break:break-all;line-height:1.4}
+.btn-copy-sm{padding:5px 10px;background:var(--surface);border:1px solid var(--border);
+  border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text);
+  transition:all .13s;white-space:nowrap;font-family:var(--ff-body)}
+.btn-copy-sm:hover{background:var(--surface2)}
+
+/* Shortener service link buttons */
+.shorten-service-btn{display:inline-flex;align-items:center;gap:5px;padding:7px 12px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  font-family:var(--ff-body);font-size:12px;font-weight:500;color:var(--text);
+  text-decoration:none;cursor:pointer;transition:all .14s;white-space:nowrap}
+.shorten-service-btn:hover{background:var(--surface3);border-color:var(--border-focus);color:var(--text)}
+
+/* Output panel */
+.out-panel{display:flex;flex-direction:column;padding:20px;gap:16px}
+.out-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+
+/* URL summary bar */
+.url-bar{background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  padding:10px 14px;display:flex;align-items:flex-start;gap:10px;min-height:42px}
+.url-bar-text{font-size:12px;color:var(--muted);flex:1;word-break:break-all;
+  line-height:1.5;font-variant-numeric:tabular-nums}
+.url-bar-text.filled{color:var(--text)}
+.url-bar-icon{flex-shrink:0;width:16px;height:16px;color:var(--muted);margin-top:1px}
+
+/* Badges row */
+.badges{display:flex;flex-wrap:wrap;gap:6px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:20px;
+  font-size:11px;font-weight:600;border:1px solid}
+.badge.green{color:var(--green);background:var(--green-bg);border-color:color-mix(in srgb,var(--green) 25%,transparent)}
+.badge.amber{color:var(--amber);background:var(--amber-bg);border-color:color-mix(in srgb,var(--amber) 25%,transparent)}
+.badge-dot{width:5px;height:5px;border-radius:50%}
+.badge.green .badge-dot{background:var(--green)}
+.badge.amber .badge-dot{background:var(--amber)}
+
+/* QR frame */
+.qr-frame{border:1px solid var(--border);border-radius:12px;
+  aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;background:var(--surface2)}
+.qr-frame.has-qr{background:#fff}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .qr-frame.has-qr{background:#fff}}
+:root[data-theme="dark"] .qr-frame.has-qr{background:#fff}
+.qr-idle{text-align:center;padding:24px}
+.qr-idle svg{opacity:.2;display:block;margin:0 auto 10px}
+.qr-idle p{font-size:12px;color:var(--muted);line-height:1.5}
+#qr-container{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:16px}
+#qr-container canvas{max-width:100%;max-height:100%;width:auto!important;height:auto!important}
+#qr-container img{max-width:100%;height:auto;display:block}
+
+/* Action buttons */
+.actions{display:flex;flex-direction:column;gap:7px}
+.btn-act{width:100%;padding:10px 14px;border-radius:9px;font-family:var(--ff-body);font-size:12px;
+  font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:all .14s;border:1px solid var(--border);background:var(--surface2);color:var(--text);outline:none}
+.btn-act:hover{background:var(--surface3);border-color:var(--border-focus)}
+.btn-act.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn-act.primary:hover{opacity:.82;background:var(--accent)}
+
+/* Perm badge */
+.perm-row{display:flex;align-items:center;justify-content:space-between;
+  padding:9px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:9px}
+.perm-badge{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--green)}
+.perm-pulse{width:6px;height:6px;border-radius:50%;background:var(--green);
+  animation:blink 2.5s ease-in-out infinite}
+.perm-sz{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);
+  background:var(--accent);color:var(--accent-fg);padding:9px 18px;border-radius:40px;
+  font-size:12px;font-weight:500;opacity:0;transition:opacity .22s,transform .22s;
+  pointer-events:none;z-index:99;white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Section note */
+.note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:10px;
+  padding:8px 11px;background:var(--surface2);border-radius:7px;border-left:2px solid var(--border)}
+
+/* UTM preview */
+.utm-preview{margin-top:12px;padding:10px 12px;background:var(--surface3);border-radius:9px;
+  border:1px solid var(--border);display:none}
+.utm-preview .pv-label{font-size:10px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.utm-preview .pv-url{font-size:11px;color:var(--text);word-break:break-all;line-height:1.5;
+  font-variant-numeric:tabular-nums}
+
+/* Responsive tweaks */
+@media(max-width:440px){.row2{grid-template-columns:1fr}.size-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+
+<div class="app">
+  <header class="hdr">
+    <div class="hdr-eyebrow">
+      <span class="eye-dot"></span>
+      Client-side · No server · No expiry
+    </div>
+    <h1>Links, Tracking<br><em>& QR Codes</em></h1>
+    <p class="hdr-sub">Shorten URLs, build UTM tracking links, and generate permanent QR codes — all in one place.</p>
+  </header>
+
+  <div class="ws">
+
+    <!-- ═══ LEFT: Config ═══ -->
+    <div class="panel">
+
+      <!-- Step 1: URL Input -->
+      <div class="step open" id="step-url">
+        <div class="step-hd">
+          <span class="step-icon">🔗</span>
+          <span class="step-title">Your URL</span>
+        </div>
+        <div class="step-body" style="display:block">
+          <div class="step-body-inner">
+            <textarea id="url-input" rows="3" placeholder="https://your-website.com/page" spellcheck="false"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: UTM Builder -->
+      <div class="step" id="step-utm">
+        <div class="step-hd toggle" role="button" tabindex="0" aria-expanded="false" id="utm-toggle">
+          <span class="step-icon">📊</span>
+          <span class="step-title">UTM Tracking</span>
+          <span class="step-meta" id="utm-meta">Optional</span>
+          <span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+        </div>
+        <div class="step-body">
+          <div class="step-body-inner">
+            <div class="field">
+              <label class="fl" for="utm-source">Source</label>
+              <input type="text" id="utm-source" placeholder="facebook, google, newsletter…">
+              <div class="chips">
+                <span class="chip" data-field="utm-source" data-val="facebook">Facebook</span>
+                <span class="chip" data-field="utm-source" data-val="instagram">Instagram</span>
+                <span class="chip" data-field="utm-source" data-val="google">Google</span>
+                <span class="chip" data-field="utm-source" data-val="tiktok">TikTok</span>
+                <span class="chip" data-field="utm-source" data-val="line">LINE</span>
+                <span class="chip" data-field="utm-source" data-val="email">Email</span>
+              </div>
+            </div>
+            <div class="field">
+              <label class="fl" for="utm-medium">Medium</label>
+              <input type="text" id="utm-medium" placeholder="social, cpc, email, organic…">
+              <div class="chips">
+                <span class="chip" data-field="utm-medium" data-val="social">social</span>
+                <span class="chip" data-field="utm-medium" data-val="cpc">cpc</span>
+                <span class="chip" data-field="utm-medium" data-val="email">email</span>
+                <span class="chip" data-field="utm-medium" data-val="organic">organic</span>
+                <span class="chip" data-field="utm-medium" data-val="referral">referral</span>
+              </div>
+            </div>
+            <div class="field">
+              <label class="fl" for="utm-campaign">Campaign</label>
+              <input type="text" id="utm-campaign" placeholder="spring_sale, product_launch…">
+            </div>
+            <div class="row2">
+              <div class="field">
+                <label class="fl" for="utm-term">Term <span style="font-weight:400;opacity:.6">(opt.)</span></label>
+                <input type="text" id="utm-term" placeholder="paid keyword">
+              </div>
+              <div class="field">
+                <label class="fl" for="utm-content">Content <span style="font-weight:400;opacity:.6">(opt.)</span></label>
+                <input type="text" id="utm-content" placeholder="banner_a, link_bio">
+              </div>
+            </div>
+            <div class="utm-preview" id="utm-preview">
+              <div class="pv-label">UTM URL Preview</div>
+              <div class="pv-url" id="utm-preview-url"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Shorten -->
+      <div class="step" id="step-short">
+        <div class="step-hd toggle" role="button" tabindex="0" aria-expanded="false" id="short-toggle">
+          <span class="step-icon">✂️</span>
+          <span class="step-title">Short URL</span>
+          <span class="step-meta" id="short-meta">Optional</span>
+          <span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+        </div>
+        <div class="step-body">
+          <div class="step-body-inner">
+            <div class="shorten-area">
+
+              <!-- Service links — updated dynamically when URL is entered -->
+              <div id="shorten-links-area" style="display:none">
+                <div style="font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">เปิดเว็บย่อ URL</div>
+                <div style="display:flex;gap:7px;flex-wrap:wrap">
+                  <a id="link-tinyurl" href="#" target="_blank" rel="noopener noreferrer" class="shorten-service-btn">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    TinyURL ↗
+                  </a>
+                  <a id="link-isgd" href="#" target="_blank" rel="noopener noreferrer" class="shorten-service-btn">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    is.gd ↗
+                  </a>
+                  <a id="link-bitly" href="https://bitly.com" target="_blank" rel="noopener noreferrer" class="shorten-service-btn">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    Bitly ↗
+                  </a>
+                </div>
+                <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">
+                  1. คลิกปุ่มด้านบน → ย่อ URL ในเว็บนั้น<br>
+                  2. คัดลอก short URL ที่ได้<br>
+                  3. วางกลับมาที่ช่องด้านล่าง แล้วกด <strong>ใช้</strong>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px">
+                  <input type="text" id="short-manual-input" placeholder="วาง short URL ที่ได้มา…" style="flex:1;font-size:12px;padding:8px 10px">
+                  <button class="btn-copy-sm" id="short-manual-use" style="white-space:nowrap;padding:8px 12px;font-size:12px;background:var(--accent);color:var(--accent-fg);border-color:var(--accent)">ใช้</button>
+                </div>
+              </div>
+
+              <div class="short-result" id="short-result">
+                <div class="short-label">Short URL (permanent)</div>
+                <div class="short-url-row">
+                  <span class="short-url-text" id="short-url-text"></span>
+                  <button class="btn-copy-sm" id="copy-short-btn">Copy</button>
+                </div>
+              </div>
+            </div>
+            <p class="note">เปิดลิงก์ด้านบน → ย่อ URL → วาง short URL กลับมาใส่ในช่อง แล้วกด ใช้</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: QR Settings -->
+      <div class="step" id="step-qr">
+        <div class="step-hd toggle" role="button" tabindex="0" aria-expanded="false" id="qr-toggle">
+          <span class="step-icon">⬛</span>
+          <span class="step-title">QR Code Options</span>
+          <span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+        </div>
+        <div class="step-body">
+          <div class="step-body-inner">
+            <div class="field">
+              <label class="fl">Size</label>
+              <div class="size-grid">
+                <button class="sz" data-size="200">S<span>200 px</span></button>
+                <button class="sz active" data-size="400">M<span>400 px</span></button>
+                <button class="sz" data-size="700">L<span>700 px</span></button>
+                <button class="sz" data-size="1000">XL<span>1000 px</span></button>
+              </div>
+            </div>
+            <div class="field">
+              <label class="fl" for="qr-ecc">Error Correction</label>
+              <select id="qr-ecc">
+                <option value="M">Medium — 15% recovery (recommended)</option>
+                <option value="L">Low — 7% recovery · smaller code</option>
+                <option value="Q">Quartile — 25% recovery</option>
+                <option value="H">High — 30% recovery · most robust</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="fl">Colors</label>
+              <div class="clr-row">
+                <div class="clr-col">
+                  <div style="font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Foreground</div>
+                  <div class="clr-wrap">
+                    <input type="color" id="fg" value="#000000">
+                    <span class="clr-hex" id="fg-hex">#000000</span>
+                  </div>
+                </div>
+                <div class="clr-col" id="bg-col">
+                  <div style="font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Background</div>
+                  <div class="clr-wrap">
+                    <input type="color" id="bg" value="#ffffff">
+                    <span class="clr-hex" id="bg-hex">#FFFFFF</span>
+                  </div>
+                </div>
+              </div>
+              <label id="transp-label" style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;user-select:none">
+                <input type="checkbox" id="transp-check" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
+                <span style="font-size:12px;color:var(--muted)">Transparent background <span style="opacity:.6">(PNG / SVG)</span></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generate CTA -->
+      <div class="step-cta">
+        <button class="btn-gen" id="gen-btn" disabled>Generate QR Code</button>
+      </div>
+
+    </div><!-- /left panel -->
+
+    <!-- ═══ RIGHT: Output ═══ -->
+    <div class="panel out-panel">
+      <div class="out-label">Results</div>
+
+      <!-- Active URL -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;letter-spacing:.03em">ACTIVE URL</div>
+        <div class="url-bar" id="url-bar">
+          <svg class="url-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          <span class="url-bar-text" id="url-bar-text">Enter a URL to get started</span>
+        </div>
+      </div>
+
+      <!-- Badges -->
+      <div class="badges" id="badges" style="display:none"></div>
+
+      <!-- QR -->
+      <div class="qr-frame" id="qr-frame">
+        <div class="qr-idle" id="qr-idle">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity=".07"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity=".07"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity=".07"/>
+            <circle cx="17.5" cy="17.5" r="2" fill="currentColor" stroke="none" opacity=".25"/>
+            <line x1="14" y1="14" x2="16" y2="14"/><line x1="14" y1="17" x2="14" y2="21"/>
+            <line x1="17" y1="17" x2="21" y2="17"/><line x1="21" y1="14" x2="21" y2="17"/>
+            <line x1="17" y1="21" x2="21" y2="21"/>
+          </svg>
+          <p>Your QR code<br>will appear here</p>
+        </div>
+        <div id="qr-container" hidden></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions" id="qr-actions" hidden>
+        <div class="perm-row">
+          <div class="perm-badge"><span class="perm-pulse"></span>Permanent · Never expires</div>
+          <span class="perm-sz" id="perm-sz">—</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">
+          <button class="btn-act primary" id="save-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Save PNG
+          </button>
+          <button class="btn-act" id="save-svg-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            Save SVG
+          </button>
+        </div>
+        <button class="btn-act" id="copy-qr-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy QR to Clipboard
+        </button>
+        <button class="btn-act" id="copy-url-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          Copy Active URL
+        </button>
+      </div>
+
+    </div><!-- /right panel -->
+  </div><!-- /workspace -->
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ── State ── */
+const S = {
+  baseURL: '',
+  utmURL: '',
+  shortURL: '',
+  shortBase: '',
+  qrSize: 400,
+  qrCanvas: null,
+  svgData: null,
+  downloadsAPI: null
+};
+
+/* ── Downloads capability ── */
+claude.use('downloads').then(api => { S.downloadsAPI = api; });
+
+/* ── Accordion toggles ── */
+['utm-toggle','short-toggle','qr-toggle'].forEach(id => {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  const step = btn.closest('.step');
+  btn.addEventListener('click', () => {
+    const open = step.classList.contains('open');
+    step.classList.toggle('open', !open);
+    btn.setAttribute('aria-expanded', String(!open));
+  });
+  btn.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' '){ e.preventDefault(); btn.click(); } });
+});
+
+/* ── Size buttons ── */
+document.querySelectorAll('.sz').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sz').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    S.qrSize = parseInt(btn.dataset.size);
+  });
+});
+
+/* ── Color pickers ── */
+const fgIn = document.getElementById('fg');
+const bgIn = document.getElementById('bg');
+const transpCheck = document.getElementById('transp-check');
+document.getElementById('fg-hex').textContent = fgIn.value.toUpperCase();
+document.getElementById('bg-hex').textContent = bgIn.value.toUpperCase();
+fgIn.addEventListener('input', () => { document.getElementById('fg-hex').textContent = fgIn.value.toUpperCase(); });
+bgIn.addEventListener('input', () => { document.getElementById('bg-hex').textContent = bgIn.value.toUpperCase(); });
+transpCheck.addEventListener('change', () => {
+  const bgCol = document.getElementById('bg-col');
+  bgCol.style.opacity = transpCheck.checked ? '.35' : '';
+  bgCol.style.pointerEvents = transpCheck.checked ? 'none' : '';
+});
+
+/* ── UTM chips ── */
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const fieldId = chip.dataset.field;
+    const val = chip.dataset.val;
+    const input = document.getElementById(fieldId);
+    input.value = val;
+    document.querySelectorAll(`.chip[data-field="${fieldId}"]`).forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    updateUTM();
+  });
+});
+
+/* ── URL input ── */
+const urlInput = document.getElementById('url-input');
+let inputTimer;
+urlInput.addEventListener('input', () => {
+  S.baseURL = urlInput.value.trim();
+  S.shortURL = '';
+  document.getElementById('short-result').style.display = 'none';
+  clearTimeout(inputTimer);
+  inputTimer = setTimeout(() => { updateAll(); }, 400);
+  updateGenBtn();
+  updateShortenArea();
+});
+
+/* ── UTM fields ── */
+['utm-source','utm-medium','utm-campaign','utm-term','utm-content'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    const chips = document.querySelectorAll(`.chip[data-field="${id}"]`);
+    chips.forEach(c => c.classList.toggle('active', c.dataset.val === el.value.trim()));
+    clearTimeout(inputTimer);
+    inputTimer = setTimeout(updateUTM, 300);
+  });
+});
+
+function getUTMParams() {
+  const params = {};
+  ['source','medium','campaign','term','content'].forEach(f => {
+    const v = document.getElementById('utm-'+f).value.trim();
+    if (v) params['utm_'+f] = v;
+  });
+  return params;
+}
+
+function buildUTMUrl(base) {
+  if (!base) return '';
+  const params = getUTMParams();
+  if (!Object.keys(params).length) return '';
+  try {
+    const u = new URL(base);
+    Object.entries(params).forEach(([k,v]) => u.searchParams.set(k, v));
+    return u.toString();
+  } catch {
+    const sep = base.includes('?') ? '&' : '?';
+    return base + sep + Object.entries(params).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');
+  }
+}
+
+function updateUTM() {
+  const utmUrl = buildUTMUrl(S.baseURL);
+  S.utmURL = utmUrl;
+  const newBase = utmUrl || S.baseURL;
+  if (newBase !== S.shortBase) {
+    S.shortURL = '';
+    document.getElementById('short-result').style.display = 'none';
+  }
+  const prev = document.getElementById('utm-preview');
+  if (utmUrl) {
+    prev.style.display = 'block';
+    document.getElementById('utm-preview-url').textContent = utmUrl;
+    document.getElementById('utm-meta').textContent = '✓ Active';
+    document.getElementById('utm-meta').style.color = 'var(--green)';
+  } else {
+    prev.style.display = 'none';
+    document.getElementById('utm-meta').textContent = 'Optional';
+    document.getElementById('utm-meta').style.color = '';
+  }
+  updateAll();
+  updateShortenArea();
+}
+
+function normalizeURL(url) {
+  if (!url) return '';
+  url = url.trim();
+  if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+  return url;
+}
+
+function getActiveURL() {
+  if (S.shortURL) return S.shortURL;
+  if (S.utmURL) return S.utmURL;
+  return S.baseURL;
+}
+
+function updateAll() {
+  const url = getActiveURL();
+  const bar = document.getElementById('url-bar-text');
+  if (url) {
+    bar.textContent = url;
+    bar.classList.add('filled');
+  } else {
+    bar.textContent = 'Enter a URL to get started';
+    bar.classList.remove('filled');
+  }
+  updateBadges();
+  updateGenBtn();
+  if (S.qrCanvas && url) scheduleQR();
+}
+
+function updateBadges() {
+  const box = document.getElementById('badges');
+  const url = getActiveURL();
+  if (!url) { box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+  box.innerHTML = '';
+  if (S.shortURL) box.innerHTML += `<span class="badge green"><span class="badge-dot"></span>Short URL</span>`;
+  if (S.utmURL)   box.innerHTML += `<span class="badge amber"><span class="badge-dot"></span>UTM Tracking</span>`;
+  if (transpCheck.checked) box.innerHTML += `<span class="badge green"><span class="badge-dot"></span>Transparent BG</span>`;
+  if (!S.shortURL && !S.utmURL) box.innerHTML += `<span class="badge green"><span class="badge-dot"></span>Permanent QR</span>`;
+}
+
+function updateGenBtn() {
+  document.getElementById('gen-btn').disabled = !getActiveURL();
+}
+
+/* ── Update shorten area: show service links and pre-fill hrefs ── */
+function updateShortenArea() {
+  const raw = S.utmURL || S.baseURL;
+  const urlToShorten = normalizeURL(raw);
+  const area = document.getElementById('shorten-links-area');
+  if (urlToShorten) {
+    area.style.display = 'block';
+    const encoded = encodeURIComponent(urlToShorten);
+    document.getElementById('link-tinyurl').href = 'https://tinyurl.com/create.php?source=indexpage&url=' + encoded;
+    document.getElementById('link-isgd').href    = 'https://is.gd/?isgd&url=' + encoded;
+  } else {
+    area.style.display = 'none';
+  }
+}
+
+/* ── Manual short URL paste ── */
+document.getElementById('short-manual-use').addEventListener('click', () => {
+  const val = document.getElementById('short-manual-input').value.trim();
+  if (!val || !val.startsWith('http')) { showToast('Please paste a valid short URL'); return; }
+  const raw = S.utmURL || S.baseURL;
+  S.shortURL  = val;
+  S.shortBase = normalizeURL(raw);
+  document.getElementById('short-url-text').textContent = val;
+  document.getElementById('short-result').style.display = 'block';
+  document.getElementById('short-meta').textContent = '✓ Shortened';
+  document.getElementById('short-meta').style.color = 'var(--green)';
+  document.getElementById('short-manual-input').value = '';
+  updateAll();
+  if (getActiveURL()) generateQR();
+  showToast('Short URL applied!');
+});
+
+/* ── Copy short URL ── */
+document.getElementById('copy-short-btn').addEventListener('click', () => {
+  if (!S.shortURL) return;
+  navigator.clipboard.writeText(S.shortURL).then(() => showToast('Short URL copied!')).catch(() => {});
+});
+
+/* ── Hex color parser ── */
+function hexToRGB(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return [r,g,b];
+}
+
+/* ── Canvas to SVG ── */
+// PRIMARY path: read module boolean matrix directly from QRCode.js internals.
+// This is 100% accurate — no pixel sampling, no rounding drift, works for all modes.
+function canvasToSVG(canvas, transparent, bgHex) {
+  const fgHex = fgIn.value;
+
+  // Use the module matrix from the QR instance (most reliable approach)
+  if (S.qrInstance && S.qrInstance._oQRCode && S.qrInstance._oQRCode.modules) {
+    const modules = S.qrInstance._oQRCode.modules;
+    const n = modules.length;          // QR grid size (e.g. 25 for version 2)
+    const quiet = 4;                   // standard 4-module quiet zone on each side
+    const total = n + quiet * 2;
+    const ms = 10;                     // SVG module size in units (clean, scalable)
+    const size = total * ms;
+
+    const rects = [];
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (modules[r][c]) {
+          rects.push(`<rect x="${(quiet+c)*ms}" y="${(quiet+r)*ms}" width="${ms}" height="${ms}" fill="${fgHex}"/>`);
+        }
+      }
+    }
+    const bgRect = transparent ? '' : `<rect width="${size}" height="${size}" fill="${bgHex}"/>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" shape-rendering="crispEdges">${bgRect}${rects.join('')}</svg>`;
+  }
+
+  // FALLBACK: pixel sampling from canvas (used only if _oQRCode unavailable)
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  let imgData;
+  try { imgData = ctx.getImageData(0, 0, w, h); } catch(e) { return null; }
+  const d = imgData.data;
+
+  // Find first dark pixel row (skip transparent quiet zone)
+  let firstDarkRow = -1;
+  outer: for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (d[i+3] > 128 && d[i] < 128) { firstDarkRow = y; break outer; }
+    }
+  }
+  if (firstDarkRow < 0) return null;
+
+  // Scan that row for the first dark run (7 modules of finder outer border)
+  let startX = -1, darkRun = 0;
+  for (let x = 0; x < w; x++) {
+    const i = (firstDarkRow * w + x) * 4;
+    const isDark = d[i+3] > 128 && d[i] < 128;
+    if (isDark) { if (startX < 0) startX = x; darkRun++; }
+    else if (startX >= 0) break;
+  }
+  let ms = darkRun >= 7 ? Math.round(darkRun / 7) : Math.max(1, darkRun);
+
+  // Grid origin at (startX, firstDarkRow); sample module centers from there
+  const cols = Math.round((w - startX) / ms);
+  const rows = Math.round((h - firstDarkRow) / ms);
+  const rects = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const px = Math.min(startX + Math.round(col * ms + ms * 0.5), w - 1);
+      const py = Math.min(firstDarkRow + Math.round(row * ms + ms * 0.5), h - 1);
+      const idx = (py * w + px) * 4;
+      if (d[idx+3] > 128 && d[idx] < 128) {
+        rects.push(`<rect x="${startX+col*ms}" y="${firstDarkRow+row*ms}" width="${ms}" height="${ms}" fill="${fgHex}"/>`);
+      }
+    }
+  }
+  const bgRect = transparent ? '' : `<rect width="${w}" height="${h}" fill="${bgHex}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" shape-rendering="crispEdges">${bgRect}${rects.join('')}</svg>`;
+}
+
+/* ── Generate QR ── */
+let qrTimer;
+function scheduleQR() { clearTimeout(qrTimer); qrTimer = setTimeout(generateQR, 200); }
+
+function generateQR() {
+  const url = getActiveURL();
+  if (!url) return;
+  const eccMap = { L: QRCode.CorrectLevel.L, M: QRCode.CorrectLevel.M, Q: QRCode.CorrectLevel.Q, H: QRCode.CorrectLevel.H };
+  const ecc = document.getElementById('qr-ecc').value;
+  const wrap = document.getElementById('qr-container');
+  const frame = document.getElementById('qr-frame');
+  const isTransp = transpCheck.checked;
+
+  // KEY FIX: pass rgba(0,0,0,0) as colorLight for transparent mode.
+  // QRCode.js accepts CSS color strings — this avoids pixel manipulation
+  // via getImageData/putImageData which is blocked in the artifact sandbox.
+  const lightColor = isTransp ? 'rgba(0,0,0,0)' : bgIn.value;
+
+  wrap.innerHTML = '';
+  wrap.hidden = false;
+  document.getElementById('qr-idle').style.display = 'none';
+  try {
+    S.qrInstance = new QRCode(wrap, {
+      text: url,
+      width: S.qrSize,
+      height: S.qrSize,
+      colorDark: fgIn.value,
+      colorLight: lightColor,
+      correctLevel: eccMap[ecc]
+    });
+  } catch(e) {
+    wrap.hidden = true;
+    document.getElementById('qr-idle').style.display = '';
+    showToast('Could not encode — text may be too long.');
+    return;
+  }
+
+  setTimeout(() => {
+    // QRCode.js shows the img (from canvas.toDataURL) and hides the canvas internally.
+    // We keep both references: img for display, canvas for PNG/SVG export.
+    S.qrCanvas = wrap.querySelector('canvas');
+    // Do NOT hide the img — QRCode.js shows it as the rendered QR.
+    S.svgData = S.qrCanvas ? canvasToSVG(S.qrCanvas, isTransp, bgIn.value) : null;
+    frame.classList.add('has-qr');
+    if (isTransp) {
+      frame.style.background = 'repeating-conic-gradient(#ccc 0% 25%,#fff 0% 50%) 0 0/16px 16px';
+    } else {
+      frame.style.background = '';
+    }
+    document.getElementById('qr-actions').hidden = false;
+    document.getElementById('perm-sz').textContent = S.qrSize + ' × ' + S.qrSize + ' px';
+  }, 80);
+}
+
+document.getElementById('gen-btn').addEventListener('click', generateQR);
+urlInput.addEventListener('keydown', e => { if (e.key==='Enter'&&e.ctrlKey){ e.preventDefault(); generateQR(); }});
+
+/* ── Save PNG ── */
+document.getElementById('save-btn').addEventListener('click', () => {
+  if (!S.qrCanvas) return;
+  const filename = 'qr-code' + (transpCheck.checked ? '-transparent' : '') + '.png';
+  if (S.downloadsAPI) {
+    S.qrCanvas.toBlob(blob => {
+      S.downloadsAPI.save({ filename, data: blob })
+        .then(() => showToast('PNG saved!'))
+        .catch(err => { if (err && err.code !== 'declined') showToast('Could not save.'); });
+    }, 'image/png');
+  } else {
+    const w = window.open('','_blank');
+    if (w) {
+      const d = S.qrCanvas.toDataURL('image/png');
+      w.document.write('<html><head><title>QR Code</title><style>body{margin:0;background:#f0f0f0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:14px;font-family:system-ui}img{box-shadow:0 4px 24px rgba(0,0,0,.12)}p{color:#777;font-size:13px}</style></head><body><img src="'+d+'" alt="QR Code"><p>Right-click → Save image as…</p></body></html>');
+    }
+  }
+});
+
+/* ── Save SVG ── */
+document.getElementById('save-svg-btn').addEventListener('click', () => {
+  if (!S.svgData) { showToast('Generate a QR code first.'); return; }
+  const blob = new Blob([S.svgData], { type: 'image/svg+xml' });
+  if (S.downloadsAPI) {
+    S.downloadsAPI.save({ filename: 'qr-code.svg', data: blob })
+      .then(() => showToast('SVG saved!'))
+      .catch(err => { if (err && err.code !== 'declined') showToast('Could not save.'); });
+  } else {
+    const w = window.open('','_blank');
+    if (w) {
+      const url = URL.createObjectURL(blob);
+      w.document.write('<html><head><title>QR SVG</title></head><body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f0f0f0"><img src="'+url+'" style="max-width:80vmin"><script>URL.revokeObjectURL("'+url+'");<\/script></body></html>');
+    }
+  }
+});
+
+/* ── Copy QR ── */
+document.getElementById('copy-qr-btn').addEventListener('click', () => {
+  if (!S.qrCanvas) return;
+  if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+    S.qrCanvas.toBlob(blob => {
+      navigator.clipboard.write([new ClipboardItem({'image/png': blob})])
+        .then(() => showToast('QR copied to clipboard!'))
+        .catch(() => showToast('Copy failed — try Save instead.'));
+    }, 'image/png');
+  } else {
+    showToast('Clipboard not available — use Save instead.');
+  }
+});
+
+/* ── Copy active URL ── */
+document.getElementById('copy-url-btn').addEventListener('click', () => {
+  const url = getActiveURL();
+  if (!url) return;
+  navigator.clipboard.writeText(url).then(() => showToast('URL copied!')).catch(() => {});
+});
+
+/* ── Toast ── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  setTimeout(() => t.classList.remove('on'), 2800);
+}
+
+})();
+</script>
+</html>
